@@ -1,41 +1,70 @@
 // ==UserScript==
 // @name         bilibili查看关注时间
 // @namespace    http://tampermonkey.net/
-// @version      0.1
-// @description  bilibili查看关注时间，只限关注列表的全部关注生效
+// @version      0.3
+// @description  bilibili查看关注时间，只限关注列表的全部关注生效,增加关注页面
 // @author       YuNi_Vsinger
-// @match        https://space.bilibili.com/*/fans/*
+// @match        https://space.bilibili.com/*
+// @match        https://m.bilibili.com/*
 // @icon         https://www.bilibili.com/favicon.ico
 // @grant        GM_xmlhttpRequest
 // @connect      *
-
+// @license      MIT
 // ==/UserScript==
 
 (function () {
 	'use strict';
+	// https://api.bilibili.com/x/space/acc/relation?mid=
 
-	//
-	setInterval(() => {
-
-		let ulElement = document.querySelector('.be-pager-item-active');
-		let active = document.querySelector('.follow-tabs .active');
-
-		console.log('active:', active.textContent);
-
+	window.onload = function () {
 		let currentUrl = window.location.href;
-		let userId = currentUrl.match(/(?<=space\.bilibili\.com\/)\d+/)[0];
-		let url = `https://api.bilibili.com/x/relation/followings?vmid=${userId}&pn=${ulElement.textContent}&ps=20&order=desc&order_type=attention`
+		if (currentUrl.includes('/fans/')) {
 
-		if (active.textContent == '最近关注') {
-			url = `https://api.bilibili.com/x/relation/followings?vmid=${userId}&pn=${ulElement.textContent}&ps=20&order=desc&order_type=`
+			setInterval(() => {
+				let ulElement = document.querySelector('.be-pager-item-active');
+				let active = document.querySelector('.follow-tabs .active');
+				// console.log('active:', active.textContent);
+				let userId = currentUrl.match(/(?<=space\.bilibili\.com\/)\d+/)[0];
+				let url = `https://api.bilibili.com/x/relation/followings?vmid=${userId}&pn=${ulElement.textContent}&ps=20&order=desc&order_type=attention`
+				if (active.textContent == '最近关注') {
+					url = `https://api.bilibili.com/x/relation/followings?vmid=${userId}&pn=${ulElement.textContent}&ps=20&order=desc&order_type=`
+				}
+				getList(url)
+			}, 1000);
+		} else 	if (currentUrl.includes('m.bilibili.com/space')) {
+			// console.log('手机端:', currentUrl);
+
+
+			const regex = /\/(\d+)(\?|\/|$)/;
+			const matches = currentUrl.match(regex);
+			if (matches && matches.length >= 2) {
+				let userId = matches[1];
+				// console.log('userId:', userId);
+
+				let url = `https://api.bilibili.com/x/space/acc/relation?mid=${userId}`
+				getOne(url)
+			}
+
+
 		}
+		 else {
+			// console.log('currentUrl:', currentUrl);
+			const regex = /\/(\d+)(\?|\/|$)/;
+			const matches = currentUrl.match(regex);
+			if (matches && matches.length >= 2) {
+				let userId = matches[1];
+				// console.log('userId:', userId);
 
-		get(url)
+				let url = `https://api.bilibili.com/x/space/acc/relation?mid=${userId}`
+				getOne(url)
+			}
 
-	}, 1000);
 
-	function get (url) {
+		}
+	}
 
+
+	function getList (url) {
 		GM_xmlhttpRequest({
 			method: 'get',
 			headers: {
@@ -68,6 +97,29 @@
 
 
 
+			},
+		})
+	}
+	function getOne (url) {
+
+		GM_xmlhttpRequest({
+			method: 'get',
+			headers: {
+				"Content-Type": "text/plain",
+			},
+			data: url,
+			url: url,
+			onload: (r) => {
+				// console.log('r:', r);
+
+				let response = JSON.parse(r.response);
+				// console.log('response:', response);
+
+				let element = document.getElementById('h-name');
+				if(!element){
+					 element = document.getElementsByClassName('name')[0];
+				}
+				element.textContent = element.textContent + "[" + timestamptoDate(response.data.relation.mtime) + "]";
 			},
 		})
 	}
